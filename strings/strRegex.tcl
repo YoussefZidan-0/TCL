@@ -1,4 +1,3 @@
-#! /mingw64/bin/tclsh
 
 set statement "Alan is a student"
 puts [string match "*student" $statement] ;#(* ? [])
