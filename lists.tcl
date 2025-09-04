@@ -83,6 +83,7 @@ puts ""
 set fruits $demo_list
 lappend fruits fig grape
 puts "After lappend fig grape: $fruits"
+# TO APPEND TWO LISTS use lappend list1 {*}$list2
 
 # LINSERT - Insert elements at specific positions
 set fruits2 [linsert $demo_list 2 coconut]
@@ -128,6 +129,33 @@ puts "----------------"
 # Create a list of lists (2D structure)
 set matrix [list [list 1 2 3] [list 4 5 6] [list 7 8 9]]
 puts "Matrix (list of lists): $matrix"
+# Index of String
+
+set s1 "Hello World"
+set s2 "o"
+puts "First occurrence of $s2 in s1"
+puts [string first $s2 $s1]
+puts "Character at index 0 in s1"
+puts [string index $s1 0]
+puts "Last occurrence of $s2 in s1"
+puts [string last $s2 $s1]
+puts "Word end index in s1"
+puts [string wordend $s1 20]
+puts "Word start index in s1"
+puts [string wordstart $s1 20]
+
+# When the above code is compiled and executed, it produces the following result −
+
+# First occurrence of o in s1
+# 4
+# Character at index 0 in s1
+# H
+# Last occurrence of o in s1
+# 7
+# Word end index in s1
+# 11
+# Word start index in s1
+# 6
 
 # Access nested elements
 puts "First row: [lindex $matrix 0]"
