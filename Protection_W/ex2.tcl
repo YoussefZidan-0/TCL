@@ -17,7 +17,7 @@ array set IDs ""
 ## create pattern of format 
 #line example: 33 line : 34 , 67 , 63
 set pattern {^([0-9]+)\s+(line|cross|hside|vside)\s+:(.*)$}
-set fRead [open input.txt r]
+set fRead [open test_input.txt r]
 
 while {![eof $fRead]} {
     set strLine [read $fRead] ;#or gets $fRead strLine
