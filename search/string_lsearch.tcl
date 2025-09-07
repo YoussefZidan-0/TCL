@@ -15,7 +15,6 @@ if { $index >= 0 } {
 }
 
 puts "\n~~~~~~~Patterns to modify in place~~~~~~"
-
 set lstStudents [list Ahmed "Mohamed" "Maha" "Hoda" Ashraf Mary]
 puts "Original list: $lstStudents"
 set index [lsearch -all -regexp $lstStudents {(M\w+)} ]
