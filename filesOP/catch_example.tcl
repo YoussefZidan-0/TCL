@@ -8,9 +8,9 @@ proc Div {a b} {
 }
 
 if {[catch {puts "Result = [Div 10 0]"} errmsg]} {
-    # puts "ErrorMsg: $errmsg"
-    # puts "ErrorCode: $errorCode"
-    # puts "ErrorInfo:\n$errorInfo\n"
+    puts "ErrorMsg: $errmsg"
+    puts "ErrorCode: $errorCode"
+    puts "ErrorInfo:\n$errorInfo\n"
 }
 
 if {[catch {puts "Result = [Div 10 2]"} errmsg]} {
