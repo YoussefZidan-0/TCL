@@ -1,4 +1,3 @@
-
 # Function to parse a line and create a record dictionary
 proc parse_line {line} {
     # Extract the ID and type part, and the data part
@@ -21,92 +20,7 @@ proc parse_line {line} {
     ]
 }
 
-# Create a list to store all records and a dictionary for indexed access by ID
-set all_records {}
-set records_by_id {}
-
-# Read the input file
-set input_file [open "input.txt" r]
-while {[gets $input_file line] >= 0} {
-    set record [parse_line $line]
-    if {[dict size $record] > 0} {
-        # Add to the sequential list
-        lappend all_records $record
-
-        # Add to the indexed dictionary using ID as key
-        dict set records_by_id [dict get $record id] $record
-    }
-}
-close $input_file
-
-# # Display all records for verification
-# puts "All Records:"
-# set record_count 0
-# foreach record $all_records {
-#     incr record_count
-#     puts "\nRecord $record_count:"
-#     puts "  ID: [dict get $record id]"
-#     puts "  Type: [dict get $record type]"
-#     puts "  Data elements: [dict get $record data]"
-
-#     # Demonstrate access to individual data elements
-#     puts "  Individual data elements:"
-#     foreach item [dict get $record data] {
-#         puts "    $item"
-#     }
-# }
-
-# # Example: Access a record by ID
-# puts "\nDemonstrating access by ID:"
-# set example_id 12
-
-# # Check if a record with the given ID exists
-# if {[dict exists $records_by_id $example_id]} {
-#     set record [dict get $records_by_id $example_id]
-#     puts "Found record with ID $example_id:"
-#     puts "  Type: [dict get $record type]"
-#     puts "  Data: [dict get $record data]"
-
-#     # Access specific data elements
-#     set data_elements [dict get $record data]
-#     puts "  First data element: [lindex $data_elements 0]"
-#     puts "  Number of data elements: [llength $data_elements]"
-# } else {
-#     puts "Record with ID $example_id not found"
-# }
-
-
-proc calc_prot_width {records_dict} {
-    set protection_widths {}
-
-    # First process all line types
-    dict for {id record} $records_dict {
-        if {[dict get $record type] eq "line"} {
-            set data_list [dict get $record data]
-            set intersections {}
-
-            # For each intersection point in this line
-            foreach intersection_id $data_list {
-                # Skip if intersection ID doesn't exist
-                if {![dict exists $records_dict $intersection_id]} {
-                    puts "Warning: Intersection ID $intersection_id not found"
-                    continue
-                }
-
-                # Get the width information for this intersection
-                set width [return_length $records_dict $intersection_id]
-                lappend intersections "$intersection_id:$width"
-            }
-
-            # Add this line and its protection widths to the result
-            dict set protection_widths $id $intersections
-        }
-    }
-
-    return $protection_widths
-}
-
-
+# Function to get the length value for a given record ID
 proc return_length {records_dict id} {
     # Get the record with the specified ID
     if {![dict exists $records_dict $id]} {
@@ -157,16 +71,38 @@ proc return_length {records_dict id} {
     }
 }
 
-# Examples to test the procedures
+# Function to collect width information for all line records
+proc calc_prot_width {records_dict} {
+    set protection_widths {}
 
-# Uncomment to test individual length calculations
-# puts "\nDemonstrating the return_length procedure:"
-# set cross_id 34
-# puts "Length for ID $cross_id: [return_length $records_by_id $cross_id]"
-# set hside_id 2
-# puts "Length for ID $hside_id: [return_length $records_by_id $hside_id]"
-# set vside_id 6
-# puts "Length for ID $vside_id: [return_length $records_by_id $vside_id]"
+    # First process all line types
+    dict for {id record} $records_dict {
+        if {[dict get $record type] eq "line"} {
+            set data_list [dict get $record data]
+            set intersections {}
+
+            # For each intersection point in this line
+            foreach intersection_id $data_list {
+                # Skip if intersection ID doesn't exist
+                if {![dict exists $records_dict $intersection_id]} {
+                    puts "Warning: Intersection ID $intersection_id not found"
+                    continue
+                }
+
+                # Get the width information for this intersection
+                set width [return_length $records_dict $intersection_id]
+                lappend intersections "$intersection_id:$width"
+            }
+
+            # Add this line and its protection widths to the result
+            dict set protection_widths $id $intersections
+        }
+    }
+
+    return $protection_widths
+}
+
+# Function to calculate the final protection width value for a line
 proc process_line_widths {records_dict line_id intersections} {
     # Count hside and vside elements
     set hside_count 0
@@ -260,6 +196,7 @@ proc process_line_widths {records_dict line_id intersections} {
     return $final_length
 }
 
+# Main processing function
 proc main_flow {records_dict} {
     puts "\nCalculating protection widths for all lines:"
     set protection_widths [calc_prot_width $records_dict]
@@ -282,3 +219,24 @@ proc main_flow {records_dict} {
     close $output_file
     puts "\nResults written to output.txt"
 }
+
+# Create a list to store all records and a dictionary for indexed access by ID
+set all_records {}
+set records_by_id {}
+
+# Read the input file
+set input_file [open "input.txt" r]
+while {[gets $input_file line] >= 0} {
+    set record [parse_line $line]
+    if {[dict size $record] > 0} {
+        # Add to the sequential list
+        lappend all_records $record
+
+        # Add to the indexed dictionary using ID as key
+        dict set records_by_id [dict get $record id] $record
+    }
+}
+close $input_file
+
+# Run the main flow
+main_flow $records_by_id
