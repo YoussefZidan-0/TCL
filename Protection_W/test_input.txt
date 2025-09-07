@@ -1,0 +1,61 @@
+12 line : 34 ,  45  , 67
+33 line : 34 , 67 , 63
+100 line : 200, 201, 202
+200 cross : 300, 400
+201 cross : 301, 401
+202 cross : 302, 402
+300 hside : 1.5
+301 hside : 2.7
+302 hside : 3.2
+400 vside : 4.1
+401 vside : 5.3
+402 vside : 6.0
+101 line : 203, 303, 403, 204
+203 cross : 304, 404
+204 cross : 305, 405
+303 hside : 8.3
+304 hside : 1.2
+305 hside : 3.4
+403 vside : 7.5
+404 vside : 2.8
+405 vside : 1.9
+102 line : 306, 307, 308, 406, 407
+306 hside : 2.2
+307 hside : 3.3
+308 hside : 1.1
+406 vside : 4.4
+407 vside : 5.5
+103 line : 205, 206
+205 cross : 309, 408
+206 cross : 310, 409
+309 hside : 0.5
+310 hside : 0.7
+408 vside : 9.0
+409 vside : 8.0
+104 line : 207
+207 cross : 311, 410
+311 hside : 1.0
+410 vside : 2.0
+105 line : 312, 313, 411, 412, 413
+312 hside : 3.0
+313 hside : 2.0
+411 vside : 1.0
+412 vside : 1.5
+413 vside : 2.5
+106 line : 208, 314, 414, 209
+208 cross : 315, 415
+209 cross : 316, 416
+314 hside : 4.0
+315 hside : 0.3
+316 hside : 0.8
+414 vside : 3.0
+415 vside : 5.0
+416 vside : 0.6
+107 line : 317, 417, 210
+210 cross : 318, 418
+317 hside : 0.001
+318 hside : 100.0
+417 vside : 0.002
+418 vside : 200.0
+108 line : 319, 419, 999
+109 line :
