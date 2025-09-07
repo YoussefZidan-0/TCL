@@ -1,0 +1,8 @@
+12 line : 34 ,  45  , 67
+33 line : 34 , 67 , 63
+34 cross :  2 , 6
+2   hside : 0.1
+45  hside : 5
+67  hside : 7
+6   vside : 2
+63  vside : 6
