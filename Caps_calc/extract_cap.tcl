@@ -72,18 +72,15 @@ if {[info exists argv0] && [file tail [info script]] eq [file tail $argv0]} {
     } else {
         puts "Capacitance values found in $filename:"
         puts "======================================="
-
-        # Format and display the capacitance values
+        # Format the output as a list of pairs (cell_name and capacitance)
+        set output_list "{"
         dict for {cell_name cell_data} $caps_data {
-            puts "$cell_name:"
-
             if {[dict exists $cell_data "max_capacitance"]} {
                 set max_cap [dict get $cell_data "max_capacitance"]
-                puts "  Max Capacitance: $max_cap"
-            } else {
-                puts "  No max capacitance value found"
+                append output_list "\"$cell_name\" $max_cap "
             }
-            puts ""
         }
+        append output_list "}"
+        puts $output_list
     }
 }
