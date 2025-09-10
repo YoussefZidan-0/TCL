@@ -1,0 +1,75 @@
+# vsim -batch tb_mux4to1 -do "run -all;quit" 
+# Start time: 16:03:23 on Oct 29,2024
+# Loading work.tb_mux4to1
+# Loading work.mux4to1
+# 
+# run -all
+# Test Case sel=00, in=0000: PASS
+# Test Case sel=00, in=0001: PASS
+# Test Case sel=00, in=0010: PASS
+# Test Case sel=00, in=0011: PASS
+# Test Case sel=00, in=0100: PASS
+# Test Case sel=00, in=0101: PASS
+# Test Case sel=00, in=0110: PASS
+# Test Case sel=00, in=0111: PASS
+# Test Case sel=00, in=1000: PASS
+# Test Case sel=00, in=1001: PASS
+# Test Case sel=00, in=1010: PASS
+# Test Case sel=00, in=1011: PASS
+# Test Case sel=00, in=1100: PASS
+# Test Case sel=00, in=1101: PASS
+# Test Case sel=00, in=1110: PASS
+# Test Case sel=00, in=1111: PASS
+# Test Case sel=01, in=0000: PASS
+# Test Case sel=01, in=0001: PASS
+# Test Case sel=01, in=0010: PASS
+# Test Case sel=01, in=0011: PASS
+# Test Case sel=01, in=0100: PASS
+# Test Case sel=01, in=0101: PASS
+# Test Case sel=01, in=0110: PASS
+# Test Case sel=01, in=0111: PASS
+# Test Case sel=01, in=1000: PASS
+# Test Case sel=01, in=1001: PASS
+# Test Case sel=01, in=1010: PASS
+# Test Case sel=01, in=1011: PASS
+# Test Case sel=01, in=1100: PASS
+# Test Case sel=01, in=1101: PASS
+# Test Case sel=01, in=1110: PASS
+# Test Case sel=01, in=1111: PASS
+# Test Case sel=10, in=0000: PASS
+# Test Case sel=10, in=0001: PASS
+# Test Case sel=10, in=0010: PASS
+# Test Case sel=10, in=0011: PASS
+# Test Case sel=10, in=0100: PASS
+# Test Case sel=10, in=0101: PASS
+# Test Case sel=10, in=0110: PASS
+# Test Case sel=10, in=0111: PASS
+# Test Case sel=10, in=1000: PASS
+# Test Case sel=10, in=1001: PASS
+# Test Case sel=10, in=1010: PASS
+# Test Case sel=10, in=1011: PASS
+# Test Case sel=10, in=1100: PASS
+# Test Case sel=10, in=1101: PASS
+# Test Case sel=10, in=1110: PASS
+# Test Case sel=10, in=1111: PASS
+# Test Case sel=11, in=0000: PASS
+# Test Case sel=11, in=0001: PASS
+# Test Case sel=11, in=0010: PASS
+# Test Case sel=11, in=0011: PASS
+# Test Case sel=11, in=0100: PASS
+# Test Case sel=11, in=0101: PASS
+# Test Case sel=11, in=0110: PASS
+# Test Case sel=11, in=0111: PASS
+# Test Case sel=11, in=1000: PASS
+# Test Case sel=11, in=1001: PASS
+# Test Case sel=11, in=1010: PASS
+# Test Case sel=11, in=1011: PASS
+# Test Case sel=11, in=1100: PASS
+# Test Case sel=11, in=1101: PASS
+# Test Case sel=11, in=1110: PASS
+# Test Case sel=11, in=1111: PASS
+# Total Passed Test Cases: 64 / 16
+# ** Note: $finish    : src/tb_mux.v(52)
+#    Time: 640 ps  Iteration: 0  Instance: /tb_mux4to1
+# End time: 16:03:23 on Oct 29,2024, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0

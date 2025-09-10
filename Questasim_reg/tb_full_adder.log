@@ -1,0 +1,19 @@
+# vsim -batch tb_full_adder -do "run -all;quit" 
+# Start time: 16:03:22 on Oct 29,2024
+# Loading work.tb_full_adder
+# Loading work.full_adder
+# 
+# run -all
+# Test 0: PASS | A=0, B=0, Cin=0, Sum=0, Cout=0
+# Test 1: PASS | A=0, B=0, Cin=1, Sum=1, Cout=0
+# Test 2: PASS | A=0, B=1, Cin=0, Sum=1, Cout=0
+# Test 3: PASS | A=0, B=1, Cin=1, Sum=0, Cout=1
+# Test 4: PASS | A=1, B=0, Cin=0, Sum=1, Cout=0
+# Test 5: PASS | A=1, B=0, Cin=1, Sum=0, Cout=1
+# Test 6: PASS | A=1, B=1, Cin=0, Sum=0, Cout=1
+# Test 7: PASS | A=1, B=1, Cin=1, Sum=1, Cout=1
+# Total Passed Test Cases: 8 / 8
+# ** Note: $finish    : src/tb_adder.v(50)
+#    Time: 80 ps  Iteration: 0  Instance: /tb_full_adder
+# End time: 16:03:23 on Oct 29,2024, Elapsed time: 0:00:01
+# Errors: 0, Warnings: 0
