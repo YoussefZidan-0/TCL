@@ -28,5 +28,6 @@ set l1 [list a  b] ; set l2 [list c d]
 puts "7: $l1 $l2"
 puts "7: [concat $l1 $l2]"
 
-lappend l1 {*}$l2
+# lappend l1 {*}$l2
+lappend l1 $l2
 puts "8: $l1 "
