@@ -23,39 +23,32 @@ proc extract_path {netlist_filename} {
     # }
 
     # Build a single optimized regex pattern with all cell types
-    # This creates a pattern like: "^\\s*(CELL_TYPE1|CELL_TYPE2|...)\\s+(\\w+)\\s+\\("
+    # This creates a pattern like: "^\\s*(CELL_TYPE1|CELL_TYPE2|...)\\s+(\\w+)\\s+\\((.*)\\)"
     set cell_types [dict keys $cells_caps_dict]
     set cell_types_pattern [join $cell_types "|"]
-    set combined_pattern "^\\s*(${cell_types_pattern})\\s+(\\w+)\\s+\\("
-
-    # Compile the connections pattern once - simple version that works reliably
-    set connections_pattern "\\.(\\w+)\\((\\w+)\\)"
+    set combined_pattern "^\\s*(${cell_types_pattern})\\s+(\\w+)\\s+\\((.*)\\)"
+    # We don't need the connections pattern anymore since we'll capture the entire connections part
+    # and use split to parse it
 
     while {[gets $fp line] >= 0} {
-        # Use a single regex to match any cell type at once
-        if {[regexp $combined_pattern $line -> cell_type instance_name]} {
+        # Use a single regex to match any cell type at once and capture the connection part
+        if {[regexp $combined_pattern $line -> cell_type instance_name conn_part]} {
             # Look up the specific cell type in our dictionary
             if {[dict exists $cells_caps_dict $cell_type]} {
+                # Value should always exist it's coming from the same keys as the pattern
                 set cap_value [dict get $cells_caps_dict $cell_type]
-                puts "Found $cell_type instance: $instance_name with max capacitance: $cap_value"
+                # puts "Found $cell_type instance: $instance_name with max capacitance: $cap_value"
 
                 # Extract connections using split and trim - much more robust approach
                 set connections [list]
 
-                # First extract everything between the parentheses
-                if {[regexp {\((.*)\);?$} $line -> conn_part]} {
-                    # Split the connections by comma
-                    set conn_list [split $conn_part ","]
+                # Split the connections by comma - the conn_part is already captured by the regex
+                set conn_list [split $conn_part ","]
 
-                    foreach conn $conn_list {
-                        # Parse each connection in the format .PORT(SIGNAL)
-                        if {[regexp {\.(\w+)\(([^)]+)\)} [string trim $conn] -> port signal]} {
-                            # Trim any whitespace from the port and signal
-                            set port [string trim $port]
-                            set signal [string trim $signal]
-                            lappend connections [list $port $signal]
-                        }
-                    }
+                foreach conn $conn_list {
+                    # Parse each connection in the format .PORT(SIGNAL)
+                    set conn [string trim $conn]
+                    set $conn($cell_type,input) 
                 }
 
                 # Create an entry for this instance with cell type, instance name, and connections
