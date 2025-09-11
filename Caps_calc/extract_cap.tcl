@@ -58,16 +58,17 @@ proc extract_cap {filename} {
     # Handle the last cell in the file since there's no next module to toggle the in_module flag
     # This ensures the last module in the file is properly processed
 
-    set output_list "{"
+    # Create a flattened dictionary with just cell names and their max capacitance values
+    set flat_caps_dict [dict create]
     dict for {cell_name cell_data} $caps_data {
         if {[dict exists $cell_data "max_capacitance"]} {
             set max_cap [dict get $cell_data "max_capacitance"]
-            append output_list "\"$cell_name\" $max_cap "
+            dict set flat_caps_dict $cell_name $max_cap
         }
     }
-    append output_list "}"
-    # puts $output_list
-    return $output_list
+
+    # Return the flat dictionary directly
+    return $flat_caps_dict
 }
 
 
@@ -85,16 +86,22 @@ if {[info exists argv0] && [file tail [info script]] eq [file tail $argv0]} {
     set filename [lindex $argv 0]
 
     # Call the extract_cap procedure with the filename
-    set caps_list [extract_cap $filename]
+    set caps_dict [extract_cap $filename]
 
     # Output the result
-    if {$caps_list eq "{}"} {
+    if {[dict size $caps_dict] == 0} {
         puts "No capacitance values found in $filename"
         exit 1
     } else {
         puts "Capacitance values found in $filename:"
         puts "======================================="
-        puts $caps_list
-        # Format the output as a list of pairs (cell_name and capacitance)
+
+        # Print the dictionary in a formatted way
+        set output_string "{"
+        dict for {cell_name max_cap} $caps_dict {
+            append output_string "\"$cell_name\" $max_cap "
+        }
+        append output_string "}"
+        puts $output_string
     }
 }
