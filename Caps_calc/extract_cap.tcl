@@ -5,24 +5,34 @@ proc extract_cap {filename} {
     # Open the .lib file
     set fp [open $filename r]
     set caps_data [dict create]
-    set module_pattern {^\s+\/\*{5,}}
+    set module_start_1 {^\s+\/\*{5,}}
+    set module_start_2 {^\s+\*{5,}\/}
     set in_module 0
     set current_cell ""
     set cell_name_pattern {\s+cell\s+\((\w+)\)\s*\{}
-    set max_cap_pattern {\s+max_capacitance\s*:\s*([\d\.]+)}
+    # Pattern for max_capacitance (with or without semicolon)
+    set max_cap_pattern {\s+max_capacitance\s*:\s*([\d\.]+);?}
+
+    # Initialize tracking variables
+    set partial_in_1 0
+    set partial_in_2 0
+
     # Read file line by line
     while {[gets $fp line] >= 0} {
-        # Check for module start/end pattern
-        if {[regexp $module_pattern $line -> value]} {
-            # Toggle the module state
-            if {!$in_module} {
-                set in_module 1
-            } else {
+        # Check for module start patterns
+        if {[regexp $module_start_1 $line]} {
+            set partial_in_1 1
+            set partial_in_2 0
+            # If we see a new module start, the previous one ends
+            if {$in_module} {
                 set in_module 0
-                # Reset current cell when exiting a module
                 set current_cell ""
             }
-            continue
+        }
+
+        if {$partial_in_1 && [regexp $module_start_2 $line]} {
+            set in_module 1
+            set partial_in_1 0
         }
 
         # Check for cell name pattern when we're in a module
@@ -45,7 +55,19 @@ proc extract_cap {filename} {
     # Close the file
     close $fp
 
-    return $caps_data
+    # Handle the last cell in the file since there's no next module to toggle the in_module flag
+    # This ensures the last module in the file is properly processed
+
+    set output_list "{"
+    dict for {cell_name cell_data} $caps_data {
+        if {[dict exists $cell_data "max_capacitance"]} {
+            set max_cap [dict get $cell_data "max_capacitance"]
+            append output_list "\"$cell_name\" $max_cap "
+        }
+    }
+    append output_list "}"
+    # puts $output_list
+    return $output_list
 }
 
 
@@ -63,24 +85,16 @@ if {[info exists argv0] && [file tail [info script]] eq [file tail $argv0]} {
     set filename [lindex $argv 0]
 
     # Call the extract_cap procedure with the filename
-    set caps_data [extract_cap $filename]
+    set caps_list [extract_cap $filename]
 
     # Output the result
-    if {[dict size $caps_data] == 0} {
+    if {$caps_list eq "{}"} {
         puts "No capacitance values found in $filename"
         exit 1
     } else {
         puts "Capacitance values found in $filename:"
         puts "======================================="
+        puts $caps_list
         # Format the output as a list of pairs (cell_name and capacitance)
-        set output_list "{"
-        dict for {cell_name cell_data} $caps_data {
-            if {[dict exists $cell_data "max_capacitance"]} {
-                set max_cap [dict get $cell_data "max_capacitance"]
-                append output_list "\"$cell_name\" $max_cap "
-            }
-        }
-        append output_list "}"
-        puts $output_list
     }
 }
