@@ -2,6 +2,10 @@
 
 
 proc extract_path {netlist_filename} {
+    if {![file exists $netlist_filename]} {
+        error "Netlist file '$netlist_filename' not found"
+    }
+
     set fp [open $netlist_filename r]
     source "extract_cap_new.tcl"
     source "calcu_cap.tcl"
@@ -18,27 +22,11 @@ proc extract_path {netlist_filename} {
             dict set cells_caps_dict $cell_name $max_cap
         }
     }
-    # PROPER OUTPUT FORMAT
-    # Print the dictionary in a formatted way
-    set string_cells "{"
-    dict for {cell_name max_cap} $cells_caps_dict {
-        append string_cells "\"$cell_name\" $max_cap "
-    }
-    append string_cells "}"
-    # puts $string_cells
-    # Print the dictionary for debugging/verification
-    # puts "Cell capacitance dictionary:"
-    # dict for {key value} $cells_caps_dict {
-    #     puts "$key -> $value"
-    # }
 
-    # Build a single optimized regex pattern with all cell types
-    # This creates a pattern like: "^\\s*(CELL_TYPE1|CELL_TYPE2|...)\\s+(\\w+)\\s+\\((.*)\\)"
+
+    # Build optimized regex pattern with all cell types
     set cell_types [dict keys $cells_caps_dict]
     set cell_types_pattern [join $cell_types "|"]
-    set combined_pattern "^\\s*(${cell_types_pattern})\\s+(\\w+)\\s+\\((.*)\\)"
-    # We don't need the connections pattern anymore since we'll capture the entire connections part
-    # and use split to parse it
 
     # Track module hierarchy for nested module support
     set current_module ""
@@ -112,20 +100,14 @@ proc extract_path {netlist_filename} {
                     # Value should always exist it's coming from the same keys as the pattern
                     set cap_value [dict get $cells_caps_dict $current_cell_type]
 
-                    # Extract connections using split and trim - much more robust approach
+                    # Parse connections from .PORT(SIGNAL) format
                     set connections [list]
-
-                    # Clean up the connection part and split by comma
                     set conn_part [string map {"\n" " " "\t" " "} $conn_part]
                     set conn_part [regsub -all {\s+} $conn_part " "]
                     set conn_part [string trim $conn_part]
-                    # Remove trailing ); if present
                     set conn_part [regsub {\s*\);\s*$} $conn_part ""]
 
-                    set conn_list [split $conn_part ","]
-
-                    foreach conn $conn_list {
-                        # Parse each connection in the format .PORT(SIGNAL)
+                    foreach conn [split $conn_part ","] {
                         set conn [string trim $conn]
                         if {[regexp {\.([^(]+)\(([^)]+)\)} $conn -> port signal]} {
                             lappend connections [list $port $signal]
@@ -158,10 +140,7 @@ proc extract_path {netlist_filename} {
 }
 
 close $fp
-
-# Store hierarchical connections for later use in path finding
-set output_list [list $output_list $hierarchical_connections $module_instances]
-return $output_list
+return [list $output_list $hierarchical_connections $module_instances]
 }
 
 # Parse hierarchical module connections
@@ -199,94 +178,49 @@ proc parse_hierarchical_connections {module_line module_type instance_name conne
     }
 }
 
-# Helper function to determine if a port is an output port
+# Cache for output port definitions (initialized once)
+variable output_port_cache {}
+
+# Determine if a port is an output port for a given gate type
 proc is_output_port {gate_type port} {
-    set output_ports [dict create \
-        "HA_X1" [list "CO" "S"] \
-        "XOR2_X1" [list "Z"] \
-        "XNOR2_X1" [list "ZN"] \
-        "AND2_X1" [list "ZN"] \
-        "OR2_X1" [list "ZN"] \
-        "INV_X1" [list "ZN"] \
-        "AOI21_X1" [list "ZN"] \
-        "DFFRQX1M" [list "Q"] \
-        "DFFRQX2M" [list "Q"] \
-        "DFFRQX4M" [list "Q"] \
-        "DFFSX2M" [list "Q" "QN"] \
-        "DFFSRHQX1M" [list "Q"] \
-        "DFFRHQX8M" [list "Q"] \
-        "DFFRX1M" [list "Q" "QN"] \
-        "DFFRX2M" [list "Q" "QN"] \
-        "AOI222X2M" [list "Y"] \
-        "AOI211X2M" [list "Y"] \
-        "AOI32X1M" [list "Y"] \
-        "AOI33X2M" [list "Y"] \
-        "AOI21X1M" [list "Y"] \
-        "AOI21X2M" [list "Y"] \
-        "OAI211X1M" [list "Y"] \
-        "OAI211X2M" [list "Y"] \
-        "OAI21X1M" [list "Y"] \
-        "OAI21X2M" [list "Y"] \
-        "OAI31X2M" [list "Y"] \
-        "OAI31X4M" [list "Y"] \
-        "OAI2BB1XLM" [list "Y"] \
-        "OAI2BB1X2M" [list "Y"] \
-        "OAI2BB2X1M" [list "Y"] \
-        "OAI2BB2X2M" [list "Y"] \
-        "NAND2X1M" [list "Y"] \
-        "NAND2XLM" [list "Y"] \
-        "NAND2X2M" [list "Y"] \
-        "NAND2BX1M" [list "Y"] \
-        "NAND2BXLM" [list "Y"] \
-        "NAND3X2M" [list "Y"] \
-        "NOR2X1M" [list "Y"] \
-        "NOR2X2M" [list "Y"] \
-        "NOR2X8M" [list "Y"] \
-        "NOR2X12M" [list "Y"] \
-        "NOR2BX1M" [list "Y"] \
-        "NOR3X12M" [list "Y"] \
-        "CLKINVX1M" [list "Y"] \
-        "CLKINVX2M" [list "Y"] \
-        "CLKINVX4M" [list "Y"] \
-        "INVX2M" [list "Y"] \
-        "INVX8M" [list "Y"] \
-        "BUFX5M" [list "Y"] \
-        "BUFX10M" [list "Y"] \
-        "CLKBUFX4M" [list "Y"] \
-        "CLKBUFX6M" [list "Y"] \
-        "CLKBUFX8M" [list "Y"] \
-        "AND3X2M" [list "Y"] \
-        "AO22XLM" [list "Y"] \
-        "AO22X1M" [list "Y"] \
-        "AO2B2X1M" [list "Y"] \
-        "AOI2BB2X2M" [list "Y"] \
-        "XOR3X1M" [list "Y"] \
-        "XOR3XLM" [list "Y"] \
-        "XNOR2X1M" [list "Y"] \
-        "CLKXOR2X2M" [list "Y"] \
-        "CLKXOR2X1M" [list "Y"] \
-        "OAI2B2X1M" [list "Y"] \
-        "MUX2X1M" [list "Y"] \
-        "MUX2X2M" [list "Y"] \
-        "TBUF_X1" [list "Y"] \
-        "TBUF_X2" [list "Y"] \
-        "TBUF_X4" [list "Y"] \
-        "TBUF_X8" [list "Y"] \
-        "DLL_X1" [list "Q"] \
-        "DLL_X2" [list "Q"] \
-        "DLH_X1" [list "Q"] \
-        "DLH_X2" [list "Q"] \
-        "FA_X1" [list "CO" "S"] \
-    ]
+    variable output_port_cache
 
-if {[dict exists $output_ports $gate_type]} {
-    return [expr {$port in [dict get $output_ports $gate_type]}]
-}
-return 0
-}
+    # Initialize cache on first use
+    if {[llength $output_port_cache] == 0} {
+        set output_port_cache [dict create \
+            "HA_X1" [list "CO" "S"] "XOR2_X1" [list "Z"] "XNOR2_X1" [list "ZN"] \
+            "AND2_X1" [list "ZN"] "OR2_X1" [list "ZN"] "INV_X1" [list "ZN"] \
+            "AOI21_X1" [list "ZN"] "DFFRQX1M" [list "Q"] "DFFRQX2M" [list "Q"] \
+            "DFFRQX4M" [list "Q"] "DFFSX2M" [list "Q" "QN"] "DFFSRHQX1M" [list "Q"] \
+            "DFFRHQX8M" [list "Q"] "DFFRX1M" [list "Q" "QN"] "DFFRX2M" [list "Q" "QN"] \
+            "AOI222X2M" [list "Y"] "AOI211X2M" [list "Y"] "AOI32X1M" [list "Y"] \
+            "AOI33X2M" [list "Y"] "AOI21X1M" [list "Y"] "AOI21X2M" [list "Y"] \
+            "OAI211X1M" [list "Y"] "OAI211X2M" [list "Y"] "OAI21X1M" [list "Y"] \
+            "OAI21X2M" [list "Y"] "OAI31X2M" [list "Y"] "OAI31X4M" [list "Y"] \
+            "OAI2BB1XLM" [list "Y"] "OAI2BB1X2M" [list "Y"] "OAI2BB2X1M" [list "Y"] \
+            "OAI2BB2X2M" [list "Y"] "NAND2X1M" [list "Y"] "NAND2XLM" [list "Y"] \
+            "NAND2X2M" [list "Y"] "NAND2BX1M" [list "Y"] "NAND2BXLM" [list "Y"] \
+            "NAND3X2M" [list "Y"] "NOR2X1M" [list "Y"] "NOR2X2M" [list "Y"] \
+            "NOR2X8M" [list "Y"] "NOR2X12M" [list "Y"] "NOR2BX1M" [list "Y"] \
+            "NOR3X12M" [list "Y"] "CLKINVX1M" [list "Y"] "CLKINVX2M" [list "Y"] \
+            "CLKINVX4M" [list "Y"] "INVX2M" [list "Y"] "INVX8M" [list "Y"] \
+            "BUFX5M" [list "Y"] "BUFX10M" [list "Y"] "CLKBUFX4M" [list "Y"] \
+            "CLKBUFX6M" [list "Y"] "CLKBUFX8M" [list "Y"] "AND3X2M" [list "Y"] \
+            "AO22XLM" [list "Y"] "AO22X1M" [list "Y"] "AO2B2X1M" [list "Y"] \
+            "AOI2BB2X2M" [list "Y"] "XOR3X1M" [list "Y"] "XOR3XLM" [list "Y"] \
+            "XNOR2X1M" [list "Y"] "CLKXOR2X2M" [list "Y"] "CLKXOR2X1M" [list "Y"] \
+            "OAI2B2X1M" [list "Y"] "MUX2X1M" [list "Y"] "MUX2X2M" [list "Y"] \
+            "TBUF_X1" [list "Y"] "TBUF_X2" [list "Y"] "TBUF_X4" [list "Y"] \
+            "TBUF_X8" [list "Y"] "DLL_X1" [list "Q"] "DLL_X2" [list "Q"] \
+            "DLH_X1" [list "Q"] "DLH_X2" [list "Q"] "FA_X1" [list "CO" "S"]]
+    }
 
-# Build signal graph from instances with hierarchical support
-proc build_signal_graph {parse_result} {
+    return [expr {[dict exists $output_port_cache $gate_type] &&
+        $port in [dict get $output_port_cache $gate_type]}]
+    }
+
+    # Build signal graph from instances with hierarchical support
+    proc build_signal_graph {parse_result} {
     # Handle new return format from extract_path
     set instances [lindex $parse_result 0]
     set hierarchical_connections [lindex $parse_result 1]
@@ -302,18 +236,17 @@ proc build_signal_graph {parse_result} {
         set gate_name [dict get $instance instance_name]
         set gate_type [dict get $instance cell_type]
 
-        # Store gate info for later use
         dict set gate_to_info $gate_name [dict create "type" $gate_type "instance" $instance]
 
         foreach conn [dict get $instance connections] {
             set port [lindex $conn 0]
             set signal [lindex $conn 1]
+            set gate_info [list $gate_name $port $gate_type]
 
-            # Determine if port is input or output based on gate type
             if {[is_output_port $gate_type $port]} {
-                dict lappend signal_to_drivers $signal [list $gate_name $port $gate_type]
+                dict lappend signal_to_drivers $signal $gate_info
             } else {
-                dict lappend signal_to_loads $signal [list $gate_name $port $gate_type]
+                dict lappend signal_to_loads $signal $gate_info
             }
         }
     }
@@ -447,34 +380,21 @@ proc find_all_paths {current_signal target_signal drivers loads visited path {ma
 
     # For each gate that loads this signal
     foreach gate_info $loaded_gates {
-        incr gate_count
-        if {$gate_count > $max_gates_per_signal} {
+        if {[incr gate_count] > $max_gates_per_signal || [llength $all_paths] > 10} {
             break
         }
 
         set gate_name [lindex $gate_info 0]
         set gate_type [lindex $gate_info 2]
 
-        # Find output signals of this gate
-        set gate_outputs [get_gate_outputs $gate_name $drivers]
-
-        foreach output_signal $gate_outputs {
+        foreach output_signal [get_gate_outputs $gate_name $drivers] {
             if {![dict exists $new_visited $output_signal]} {
-                # Create new path with this gate added
                 set new_path [concat $path [list "$gate_type ($gate_name)"]]
-                # Continue recursively with branch-specific visited list
                 set sub_paths [find_all_paths $output_signal $target_signal $drivers $loads $new_visited $new_path $max_depth]
                 set all_paths [concat $all_paths $sub_paths]
 
-                # Limit total paths found to prevent memory explosion
-                if {[llength $all_paths] > 10} {
-                    break
-                }
+                if {[llength $all_paths] > 10} break
             }
-        }
-
-        if {[llength $all_paths] > 10} {
-            break
         }
     }
 
@@ -768,119 +688,9 @@ proc get_path {netlist start end} {
     return [extract_signal_path $netlist $start $end]
 }
 
-# Extract capacitance values from path gates
-proc extract_path_capacitances {path gate_to_info cells_caps_dict} {
-    set capacitances [list]
-    set gate_details [list]
 
-    # Helper function to process individual gates
-    proc process_gate {gate_info caps_dict caps_list_var details_list_var} {
-        upvar $caps_list_var caps_list
-        upvar $details_list_var details_list
 
-        # Extract gate type and instance name from gate_info format
-        if {[regexp {(\w+)\s*\(([^)]+)\)} $gate_info -> gate_type instance_name]} {
-            if {[dict exists $caps_dict $gate_type]} {
-                set cap_value [dict get $caps_dict $gate_type]
-                lappend caps_list $cap_value
-                lappend details_list [dict create "gate_type" $gate_type "instance" $instance_name "capacitance" $cap_value]
-            } else {
-                # If gate type not found, add 0 capacitance with warning
-                lappend caps_list 0
-                lappend details_list [dict create "gate_type" $gate_type "instance" $instance_name "capacitance" 0 "warning" "Capacitance not found"]
-            }
-        }
-    }
 
-    # Process path structure recursively
-    proc process_path_element {element caps_dict caps_list_var details_list_var} {
-        upvar $caps_list_var caps_list
-        upvar $details_list_var details_list
-
-        # Check if this looks like a gate name by checking if it contains parentheses
-        # Gate format: "GATE_TYPE (instance_name)" gets split into {"GATE_TYPE" "(instance_name)"}
-        if {[llength $element] == 2} {
-            set first_part [lindex $element 0]
-            set second_part [lindex $element 1]
-            # Check if second part looks like "(instance_name)"
-            if {[string match "(*)" $second_part]} {
-                # This is a gate name that got split by TCL list parsing
-                set gate_str "$first_part $second_part"
-                process_gate $gate_str $caps_dict caps_list details_list
-                return
-            }
-        }
-
-        # Handle single string elements (gate names)
-        if {[llength $element] == 1} {
-            set gate_str $element
-            if {$gate_str ne "S" && $gate_str ne "P"} {
-                process_gate $gate_str $caps_dict caps_list details_list
-            }
-        } else {
-            # List with multiple elements - process each
-            foreach subelement $element {
-                if {$subelement eq "P" || $subelement eq "S"} {
-                    # Section markers - skip
-                    continue
-                } elseif {[llength $subelement] == 2 && [string match "(*)" [lindex $subelement 1]]} {
-                    # This is a gate name that got split
-                    set gate_str "[lindex $subelement 0] [lindex $subelement 1]"
-                    process_gate $gate_str $caps_dict caps_list details_list
-                } elseif {[llength $subelement] > 1} {
-                    # Nested structure - recurse
-                    process_path_element $subelement $caps_dict caps_list details_list
-                } else {
-                    # Single element - check if it's a gate
-                    if {$subelement ne "S" && $subelement ne "P"} {
-                        process_gate $subelement $caps_dict caps_list details_list
-                    }
-                }
-            }
-        }
-    }
-
-    # Skip the first "S" marker and process the rest
-    if {[llength $path] > 1} {
-        set path_content [lrange $path 1 end]
-        foreach element $path_content {
-            process_path_element $element $cells_caps_dict capacitances gate_details
-        }
-    }
-
-    return [list $capacitances $gate_details]
-}
-
-# Determine if path section is series or parallel
-proc analyze_path_structure {path} {
-    # Returns list of structures: each element is {type capacitances}
-    # where type is "series" or "parallel"
-
-    set structures [list]
-
-    if {[llength $path] <= 1} {
-        return $structures
-    }
-
-    # Skip the initial "S" and analyze structure
-    set path_content [lrange $path 1 end]
-
-    foreach element $path_content {
-        if {[llength $element] == 1} {
-            # Single gate - series
-            lappend structures [dict create "type" "series" "content" $element]
-        } elseif {[lindex $element 0] eq "P"} {
-            # Parallel section
-            set parallel_content [lrange $element 1 end]
-            lappend structures [dict create "type" "parallel" "content" $parallel_content]
-        } else {
-            # Treat as series if not explicitly marked as parallel
-            lappend structures [dict create "type" "series" "content" $element]
-        }
-    }
-
-    return $structures
-}
 
 # Recursive function to calculate capacitance from path structure
 proc calculate_path_capacitance_recursive {path_element cells_caps_dict gate_details_var calculation_steps_var} {
@@ -1030,32 +840,10 @@ proc calculate_path_capacitance {path gate_to_info cells_caps_dict} {
         "structures" $structures]
 }
 
-# Helper function to count gates in a path element
-proc count_gates_in_element {element} {
-    if {[llength $element] == 1} {
-        set gate_str [lindex $element 0]
-        if {$gate_str ne "S" && $gate_str ne "P"} {
-            return 1
-        } else {
-            return 0
-        }
-    } else {
-        set count 0
-        foreach subelement $element {
-            if {$subelement eq "P" || $subelement eq "S"} {
-                continue
-            } elseif {[llength $subelement] > 1} {
-                incr count [count_gates_in_element $subelement]
-            } else {
-                incr count 1
-            }
-        }
-        return $count
-    }
-}
 
-# Enhanced path extraction with capacitance calculation
-proc extract_path_with_capacitance {netlist_filename start_signal end_signal} {
+
+# Get path with capacitance calculation - main user function
+proc get_path_with_capacitance {netlist_filename start_signal end_signal} {
     # Get the parsed instances and hierarchical info
     set parse_result [extract_path $netlist_filename]
 
@@ -1109,10 +897,7 @@ proc extract_path_with_capacitance {netlist_filename start_signal end_signal} {
     return $result_dict
 }
 
-# User-friendly function to get path with capacitance
-proc get_path_with_capacitance {netlist start end} {
-    return [extract_path_with_capacitance $netlist $start $end]
-}
+
 
 # Display comprehensive path and capacitance information
 proc display_path_analysis {result} {
@@ -1165,9 +950,8 @@ proc display_path_analysis {result} {
 
 # GUI-ready function that returns structured data
 proc get_gui_path_data {netlist start end} {
-    set result [extract_path_with_capacitance $netlist $start $end]
+    set result [get_path_with_capacitance $netlist $start $end]
 
-    # Return data in GUI-friendly format
     return [dict create \
         "success" [dict get $result "path_found"] \
         "data" $result]
@@ -1176,159 +960,24 @@ proc get_gui_path_data {netlist start end} {
 # Enhanced hierarchical path extraction with module support
 proc get_hierarchical_path {netlist start end {module_context ""}} {
     set parse_result [extract_path $netlist]
-
-    # Build hierarchical signal graph
-    set graph_info [build_hierarchical_signal_graph $parse_result]
+    set graph_info [build_signal_graph $parse_result]
     set signal_to_drivers [lindex $graph_info 0]
     set signal_to_loads [lindex $graph_info 1]
-    set module_map [lindex $graph_info 2]
+    set hierarchical_connections [lindex $graph_info 3]
 
-    # Find path with module boundary crossing support
-    return [find_hierarchical_path $start $end $signal_to_drivers $signal_to_loads $module_map $module_context]
+    return [find_path_hierarchical $start $end $signal_to_drivers $signal_to_loads $hierarchical_connections]
 }
 
-# Build signal graph with hierarchical module support
-proc build_hierarchical_signal_graph {parse_result} {
-    # Handle new return format
-    set instances [lindex $parse_result 0]
-    set hierarchical_connections [lindex $parse_result 1]
-    set module_instances [lindex $parse_result 2]
-    set signal_to_drivers [dict create]
-    set signal_to_loads [dict create]
-    set module_map [dict create]
 
-    foreach instance $instances {
-        set gate_name [dict get $instance instance_name]
-        set gate_type [dict get $instance cell_type]
-        set parent_module [dict get $instance parent_module]
-        set hierarchical_path [dict get $instance hierarchical_path]
 
-        # Store hierarchical information
-        dict set module_map $hierarchical_path $instance
 
-        foreach conn [dict get $instance connections] {
-            set port [lindex $conn 0]
-            set signal [lindex $conn 1]
 
-            # Create hierarchical signal names
-            set hierarchical_signal "${parent_module}/${signal}"
-
-            if {[is_output_port $gate_type $port]} {
-                dict lappend signal_to_drivers $hierarchical_signal [list $hierarchical_path $port $gate_type]
-                # Also add non-hierarchical for backward compatibility
-                dict lappend signal_to_drivers $signal [list $gate_name $port $gate_type]
-            } else {
-                dict lappend signal_to_loads $hierarchical_signal [list $hierarchical_path $port $gate_type]
-                # Also add non-hierarchical for backward compatibility
-                dict lappend signal_to_loads $signal [list $gate_name $port $gate_type]
-            }
-        }
-    }
-
-    return [list $signal_to_drivers $signal_to_loads $module_map]
-}
-
-# Find path with support for crossing module boundaries
-proc find_hierarchical_path {start_signal end_signal drivers loads module_map {module_context ""}} {
-    # Try both hierarchical and flat signal names
-    set search_variants [list]
-
-    if {$module_context ne ""} {
-        lappend search_variants "${module_context}/${start_signal}"
-        lappend search_variants "${module_context}/${end_signal}"
-    }
-    lappend search_variants $start_signal
-    lappend search_variants $end_signal
-
-    # Find best matching signals
-    set actual_start $start_signal
-    set actual_end $end_signal
-
-    foreach variant $search_variants {
-        if {[dict exists $loads $variant] || [dict exists $drivers $variant]} {
-            if {[string match "*${start_signal}" $variant]} {
-                set actual_start $variant
-            }
-            if {[string match "*${end_signal}" $variant]} {
-                set actual_end $variant
-            }
-        }
-    }
-
-    # Use enhanced path finding
-    return [find_path $actual_start $actual_end $drivers $loads]
-}
-
-# Complex structure test function
+# Complex structure test function for validation
 proc test_complex_structures {} {
-    puts "Testing complex parallel structure detection..."
-
-    # Test with multiple convergence levels
     set test_paths [list \
         [list "A_gate" "B_gate" "CONV1_gate" "D_gate" "FINAL_gate"] \
         [list "A_gate" "C_gate" "CONV1_gate" "E_gate" "FINAL_gate"] \
         [list "A_gate" "F_gate" "CONV2_gate" "D_gate" "FINAL_gate"] \
     ]
-
-set result [structure_parallel_paths $test_paths]
-puts "Complex structure result: $result"
-return $result
+return [structure_parallel_paths $test_paths]
 }
-
-# # Call the extract_path procedure and store the result
-# set path_data [extract_path "demo_adderPlus.syn.v"]
-
-# # Print the extracted path data in a readable format
-# puts "Extracted path data from netlist:"
-# set instance_count 0
-# foreach instance $path_data {
-#     incr instance_count
-#     puts "Instance #$instance_count: [dict get $instance cell_type] ([dict get $instance instance_name])"
-#     puts "  Max Capacitance: [dict get $instance max_cap]"
-#     puts "  Connections:"
-#     foreach conn [dict get $instance connections] {
-#         puts "    [lindex $conn 0] -> [lindex $conn 1]"
-#     }
-#     puts ""
-# }
-# puts "Total instances found: $instance_count"
-
-# # Test path extraction examples
-# puts "\n=== PATH EXTRACTION TESTS ==="
-
-# # Test 1: Extract Path inputB[0]:p_0[0] (should be: {S, HA_X1 (i_0)})
-# puts "\nTest 1: Extract Path inputB\[0\]:p_0\[0\]"
-# set path1 [extract_signal_path "demo_adderPlus.syn.v" "inputB\[0\]" "p_0\[0\]"]
-# puts "Result: $path1"
-
-# # Test 2: Extract Path inputB[0]:p_0[1] (should be: {S, HA_X1 (i_0), XOR2_X1(i_8)})
-# puts "\nTest 2: Extract Path inputB\[0\]:p_0\[1\]"
-# set path2 [extract_signal_path "demo_adderPlus.syn.v" "inputB\[0\]" "p_0\[1\]"]
-# puts "Result: $path2"
-
-# # Test 3: Extract Path inputA[0]:p_0[1]
-# puts "\nTest 3: Extract Path inputA\[0\]:p_0\[1\]"
-# set path3 [extract_signal_path "demo_adderPlus.syn.v" "inputA\[0\]" "p_0\[1\]"]
-# puts "Result: $path3"
-
-# # Test 4: Parallel circuit example - Extract Path A:K
-# puts "\nTest 4: Parallel Circuit - Extract Path A:K"
-# set path4 [extract_signal_path "demo_parallel.syn.v" "A" "K"]
-# puts "Expected: {S, {P, AND2_X1 (i_0), OR2_X1 (i_1)}, AND2_X1 (i_2), INV_X1 (i_3)}"
-# puts "Result: $path4"
-
-# # Test 5: Simple series path in parallel circuit - B:K
-# puts "\nTest 5: Series Path B:K in parallel circuit"
-# set path5 [extract_signal_path "demo_parallel.syn.v" "B" "K"]
-# puts "Result: $path5"
-
-# puts "\n=== USAGE EXAMPLES ==="
-# puts "Basic path extraction:"
-# puts "  set path \[get_path \"demo_parallel.syn.v\" \"A\" \"K\"\]"
-# puts ""
-# puts "Path with capacitance calculation:"
-# puts "  set result \[get_path_with_capacitance \"demo_parallel.syn.v\" \"A\" \"K\"\]"
-# puts "  display_path_analysis \$result"
-# puts ""
-# puts "GUI-ready data:"
-# puts "  set gui_data \[get_gui_path_data \"demo_parallel.syn.v\" \"A\" \"K\"\]"
