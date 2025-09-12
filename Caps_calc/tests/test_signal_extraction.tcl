@@ -95,7 +95,7 @@ if {[llength $inputs] > 0 && [llength $outputs] > 0} {
         if {[dict get $path_result "path_found"]} {
             puts "✅ Path found!"
             puts "Path: [dict get $path_result "path"]"
-            puts "Total Capacitance: [dict get $path_result "total_capacitance"] pF"
+            puts "Total Capacitance: [dict get $path_result "total_capacitance"]  "
         } else {
             puts "❌ No path found"
             if {[dict exists $path_result "error_message"]} {

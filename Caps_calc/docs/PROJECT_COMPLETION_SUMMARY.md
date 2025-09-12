@@ -57,7 +57,7 @@ The original `extract_path.tcl` system has been transformed into a **comprehensi
 **Simple Series Path (demo_parallel.syn.v B->K)**:
 ```
 Path: {S INV_X1 (i_3)}
-Calculation: Direct gate capacitance = 60.730000 pF
+Calculation: Direct gate capacitance = 60.730000  
 ```
 
 **Complex Nested Parallel (demo_parallel.syn.v A->K)**:
@@ -65,14 +65,14 @@ Calculation: Direct gate capacitance = 60.730000 pF
 Path Structure: {S {P {AND2_X1 (i_0)} {OR2_X1 (i_1)}} {AND2_X1 (i_2)} {INV_X1 (i_3)}}
 
 Step-by-step Calculation:
-1. Gate AND2_X1 (i_0): 60.577400 pF
-2. Gate OR2_X1 (i_1): 60.577400 pF  
-3. Parallel combination: 60.577400 + 60.577400 = 121.1548 pF
-4. Gate AND2_X1 (i_2): 60.577400 pF
-5. Gate INV_X1 (i_3): 60.730000 pF
-6. Series combination: 1/(1/121.1548 + 1/60.577400 + 1/60.730000) = 24.255 pF
+1. Gate AND2_X1 (i_0): 60.577400  
+2. Gate OR2_X1 (i_1): 60.577400    
+3. Parallel combination: 60.577400 + 60.577400 = 121.1548  
+4. Gate AND2_X1 (i_2): 60.577400  
+5. Gate INV_X1 (i_3): 60.730000  
+6. Series combination: 1/(1/121.1548 + 1/60.577400 + 1/60.730000) = 24.255  
 
-Final: 24.255 pF (Mixed: Parallel and Series)
+Final: 24.255   (Mixed: Parallel and Series)
 ```
 
 **Hierarchical UART Path (UART_TX_hierarchy.v)**:

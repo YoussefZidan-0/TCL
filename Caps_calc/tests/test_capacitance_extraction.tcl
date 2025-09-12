@@ -103,7 +103,7 @@ proc demonstrate_gui_data_format {} {
                 }
                 puts ""
                 puts "Key data for GUI:"
-                puts "  Total Capacitance: [dict get $data "total_capacitance"] pF"
+                puts "  Total Capacitance: [dict get $data "total_capacitance"]  "
                 puts "  Calculation Method: [dict get $data "calculation_method"]"
                 puts "  Number of Gates: [llength [dict get $data "gate_details"]]"
                 puts "  Path Structure: [dict get $data "path"]"
@@ -129,12 +129,12 @@ proc test_capacitance_calculation_methods {} {
     # Test parallel calculation
     set parallel_caps [list 0.1 0.2 0.3]
     set parallel_result [Calculate_capacitance $parallel_caps 1]
-    puts "Parallel caps $parallel_caps -> $parallel_result pF"
+    puts "Parallel caps $parallel_caps -> $parallel_result  "
 
     # Test series calculation
     set series_caps [list 0.1 0.2 0.3]
     set series_result [Calculate_capacitance $series_caps 0]
-    puts "Series caps $series_caps -> $series_result pF"
+    puts "Series caps $series_caps -> $series_result  "
 
     # Verify calculations manually
     set expected_parallel [expr {0.1 + 0.2 + 0.3}]

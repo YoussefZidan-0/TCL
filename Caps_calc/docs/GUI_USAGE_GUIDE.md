@@ -23,7 +23,7 @@ The GUI now correctly uses the same signal extraction engine as `extract_path.tc
 - **From:** `inputA[0]`  
 - **To:** `p_0[0]`
 - **Path:** `S {HA_X1 (i_0)}`
-- **Capacitance:** 60.5774 pF
+- **Capacitance:** 60.5774  
 - **Description:** Direct connection through half-adder gate
 
 ### **Example 2: Multi-Gate Path** 

@@ -21,7 +21,7 @@ proc simple_demo {} {
             puts "✓ Path found!"
             puts "  From: [dict get $result "start_signal"]"
             puts "  To: [dict get $result "end_signal"]"
-            puts "  Total Capacitance: [dict get $result "total_capacitance"] pF"
+            puts "  Total Capacitance: [dict get $result "total_capacitance"]  "
             puts "  Method: [dict get $result "calculation_method"]"
             puts "  Gates in path: [llength [dict get $result "gate_details"]]"
         } else {

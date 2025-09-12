@@ -39,7 +39,7 @@ output K,L,M;
 
 **Path Analysis Results:**
 - ✅ **Path A → K**: `S {P {AND2_X1 (i_0)} {OR2_X1 (i_1)}} {AND2_X1 (i_2)} {INV_X1 (i_3)}`
-- ✅ **Capacitance**: 24.255 pF
+- ✅ **Capacitance**: 24.255  
 - ✅ **Method**: Mixed: Parallel and Series
 - ✅ **Structure**: Complex nested parallel → series combination
 
@@ -91,7 +91,7 @@ output Carry;
 ### **Algorithm Verification:**
 - ✅ **Parallel Detection**: Correctly identifies A → (AND2_X1 ‖ OR2_X1) parallel structure
 - ✅ **Series Calculation**: Proper series capacitance through AND2_X1 → INV_X1
-- ✅ **Mixed Calculation**: Accurate combined parallel + series = 24.255 pF
+- ✅ **Mixed Calculation**: Accurate combined parallel + series = 24.255  
 - ✅ **Path Structure**: Nested structure representation working correctly
 
 ### **Signal Coverage:**

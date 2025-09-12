@@ -27,7 +27,7 @@ proc test_uart_capacitance_calculation {} {
                 puts "  Netlist: [dict get $result "netlist_file"]"
                 puts "  From: [dict get $result "start_signal"]"
                 puts "  To: [dict get $result "end_signal"]"
-                puts "  Total Capacitance: [dict get $result "total_capacitance"] pF"
+                puts "  Total Capacitance: [dict get $result "total_capacitance"]  "
                 puts "  Individual Caps: [dict get $result "individual_capacitances"]"
                 puts "  Calculation Method: [dict get $result "calculation_method"]"
                 puts "  Number of Gates: [llength [dict get $result "gate_details"]]"
@@ -76,7 +76,7 @@ proc test_uart_capacitance_calculation {} {
 
             if {[dict get $result "path_found"]} {
                 puts "✓ SUCCESS: Path found!"
-                puts "  Total Capacitance: [dict get $result "total_capacitance"] pF"
+                puts "  Total Capacitance: [dict get $result "total_capacitance"]  "
                 puts "  Calculation Method: [dict get $result "calculation_method"]"
                 puts "  Number of Gates: [llength [dict get $result "gate_details"]]"
 
@@ -85,7 +85,7 @@ proc test_uart_capacitance_calculation {} {
                 puts "  Gate Details:"
                 set gates [dict get $result "gate_details"]
                 foreach gate $gates {
-                    puts "    [dict get $gate "gate_type"] ([dict get $gate "instance"]): [dict get $gate "capacitance"] pF"
+                    puts "    [dict get $gate "gate_type"] ([dict get $gate "instance"]): [dict get $gate "capacitance"]  "
                 }
 
                 if {[dict exists $result "calculation_steps"]} {
@@ -134,7 +134,7 @@ proc demonstrate_complex_path_analysis {} {
                 set result [get_path_with_capacitance $netlist $start $end]
 
                 if {[dict get $result "path_found"]} {
-                    puts "  ✓ Total Capacitance: [dict get $result "total_capacitance"] pF"
+                    puts "  ✓ Total Capacitance: [dict get $result "total_capacitance"]  "
                     puts "  ✓ Gates: [llength [dict get $result "gate_details"]]"
                     puts "  ✓ Method: [dict get $result "calculation_method"]"
                 } else {
@@ -174,7 +174,7 @@ proc show_gui_integration_summary {} {
 
     puts "KEY DATA FIELDS FOR GUI:"
     puts "======================="
-    puts "- total_capacitance: Final calculated value (pF)"
+    puts "- total_capacitance: Final calculated value ( )"
     puts "- individual_capacitances: List of gate capacitances"
     puts "- gate_details: [{gate_type, instance, capacitance}, ...]"
     puts "- calculation_steps: Step-by-step trace of calculation"
