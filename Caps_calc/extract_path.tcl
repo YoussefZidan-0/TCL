@@ -1,29 +1,43 @@
 
 
 
-proc extract_path {netlist_filename} {
+proc extract_path {netlist_filename {lib_files {}}} {
     if {![file exists $netlist_filename]} {
         error "Netlist file '$netlist_filename' not found"
     }
-
+    
     set fp [open $netlist_filename r]
     source "extract_cap_new.tcl"
     source "calcu_cap.tcl"
     set output_list {}
 
-    # Get the cell capacitance dictionary directly
-    set cells_caps_dict [extract_cap "scmetro_tsmc_cl013g_rvt_tt_1p2v_25c.lib"]
-
-    # Append Nangate library for backward compatibility with old tests
-    if {[file exists "NangateOpenCellLibrary_typical.lib"]} {
-        set nangate_caps_dict [extract_cap "NangateOpenCellLibrary_typical.lib"]
-        # Merge the dictionaries - Nangate cells will be added to the existing dict
-        dict for {cell_name max_cap} $nangate_caps_dict {
-            dict set cells_caps_dict $cell_name $max_cap
+    # Initialize cell capacitance dictionary
+    set cells_caps_dict [dict create]
+    
+    # Load library files - use provided list or defaults
+    if {[llength $lib_files] > 0} {
+        foreach lib_file $lib_files {
+            if {[file exists $lib_file]} {
+                set lib_dict [extract_cap $lib_file]
+                dict for {cell_name max_cap} $lib_dict {
+                    dict set cells_caps_dict $cell_name $max_cap
+                }
+            }
+        }
+    } else {
+        # Default behavior for backward compatibility
+        if {[file exists "scmetro_tsmc_cl013g_rvt_tt_1p2v_25c.lib"]} {
+            set cells_caps_dict [extract_cap "scmetro_tsmc_cl013g_rvt_tt_1p2v_25c.lib"]
+        }
+        
+        # Append Nangate library for backward compatibility
+        if {[file exists "NangateOpenCellLibrary_typical.lib"]} {
+            set nangate_caps_dict [extract_cap "NangateOpenCellLibrary_typical.lib"]
+            dict for {cell_name max_cap} $nangate_caps_dict {
+                dict set cells_caps_dict $cell_name $max_cap
+            }
         }
     }
-
-
     # Build optimized regex pattern with all cell types
     set cell_types [dict keys $cells_caps_dict]
     set cell_types_pattern [join $cell_types "|"]
@@ -665,9 +679,9 @@ proc get_gate_outputs {gate_name signal_to_drivers} {
 }
 
 # Main procedure to extract path between two signals
-proc extract_signal_path {netlist_filename start_signal end_signal} {
+proc extract_signal_path {netlist_filename start_signal end_signal {lib_files {}}} {
     # Get the parsed instances and hierarchical info
-    set parse_result [extract_path $netlist_filename]
+    set parse_result [extract_path $netlist_filename $lib_files]
 
     # Build the signal graph
     set graph_info [build_signal_graph $parse_result]
@@ -684,8 +698,8 @@ proc extract_signal_path {netlist_filename start_signal end_signal} {
 }
 
 # Convenience function for interactive use
-proc get_path {netlist start end} {
-    return [extract_signal_path $netlist $start $end]
+proc get_path {netlist start end {lib_files {}}} {
+    return [extract_signal_path $netlist $start $end $lib_files]
 }
 
 
@@ -843,9 +857,9 @@ proc calculate_path_capacitance {path gate_to_info cells_caps_dict} {
 
 
 # Get path with capacitance calculation - main user function
-proc get_path_with_capacitance {netlist_filename start_signal end_signal} {
+proc get_path_with_capacitance {netlist_filename start_signal end_signal {lib_files {}}} {
     # Get the parsed instances and hierarchical info
-    set parse_result [extract_path $netlist_filename]
+    set parse_result [extract_path $netlist_filename $lib_files]
 
     # Build the signal graph
     set graph_info [build_signal_graph $parse_result]
@@ -958,8 +972,8 @@ proc get_gui_path_data {netlist start end} {
 }
 
 # Enhanced hierarchical path extraction with module support
-proc get_hierarchical_path {netlist start end {module_context ""}} {
-    set parse_result [extract_path $netlist]
+proc get_hierarchical_path {netlist start end {module_context ""} {lib_files {}}} {
+    set parse_result [extract_path $netlist $lib_files]
     set graph_info [build_signal_graph $parse_result]
     set signal_to_drivers [lindex $graph_info 0]
     set signal_to_loads [lindex $graph_info 1]
