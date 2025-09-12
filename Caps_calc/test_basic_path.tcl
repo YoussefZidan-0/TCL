@@ -1,7 +1,7 @@
 #!/usr/bin/env tclsh
 
 source "extract_path.tcl"
-
+S {P {{AND2_X1 (i_0)}} {{OR2_X1 (i_1)}}} AND2_X1 (i_2) INV_X1 (i_3)
 puts "=== Testing Basic Path Finding (No Hierarchical) ==="
 
 # Get instances without hierarchical processing
