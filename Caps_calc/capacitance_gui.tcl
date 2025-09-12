@@ -87,15 +87,13 @@ button .main.action.calc_btn -text "Calculate Capacitance" -font {Arial 12 bold}
     -command calculate_capacitance
 pack .main.action.calc_btn
 
-#=== SECTION 4: Progress Bar ===
-frame .main.progress
-grid .main.progress -row 4 -column 0 -columnspan 3 -sticky ew -pady {0 10}
-grid columnconfigure .main.progress 0 -weight 1
+#=== SECTION 4: Status Display ===
+frame .main.status
+grid .main.status -row 4 -column 0 -columnspan 3 -sticky ew -pady {0 10}
+grid columnconfigure .main.status 0 -weight 1
 
-ttk::progressbar .main.progress.bar -mode indeterminate
-label .main.progress.status -text "Ready" -fg "#27ae60"
-grid .main.progress.bar -row 0 -column 0 -sticky ew -padx {0 10}
-grid .main.progress.status -row 0 -column 1 -sticky w
+label .main.status.message -text "Ready" -fg "#27ae60" -anchor w
+grid .main.status.message -row 0 -column 0 -sticky ew
 
 #=== SECTION 5: Results Display ===
 labelframe .main.results -text "Analysis Results" -font {Arial 10 bold} -padx 10 -pady 10
@@ -131,7 +129,7 @@ scrollbar .main.results.notebook.gates.scroll -command ".main.results.notebook.g
 # Configure columns
 .main.results.notebook.gates.tree heading #1 -text "Gate Type"
 .main.results.notebook.gates.tree heading #2 -text "Instance Name"
-.main.results.notebook.gates.tree heading #3 -text "Capacitance (pF)"
+.main.results.notebook.gates.tree heading #3 -text "Capacitance"
 .main.results.notebook.gates.tree column #1 -width 120
 .main.results.notebook.gates.tree column #2 -width 150
 .main.results.notebook.gates.tree column #3 -width 120
@@ -151,7 +149,7 @@ pack .main.results.notebook.summary.content -fill both -expand 1
 
 label .main.results.notebook.summary.content.total_lbl -text "Total Capacitance:" \
     -font {Arial 14 bold} -anchor w
-label .main.results.notebook.summary.content.total_val -text "0.00 pF" \
+label .main.results.notebook.summary.content.total_val -text "0.00" \
     -font {Arial 24 bold} -fg "#e74c3c" -anchor w
 
 label .main.results.notebook.summary.content.method_lbl -text "Calculation Method:" \
@@ -201,7 +199,6 @@ proc load_libraries {} {
     }
 
     update_status "Loading libraries..." "progress"
-    .main.progress.bar start
 
     # Build combined capacitance dictionary from all .lib files
     set ::cells_caps_dict [dict create]
@@ -218,8 +215,6 @@ proc load_libraries {} {
             continue
         }
     }
-
-    .main.progress.bar stop
     set lib_count [llength $lib_files]
     set cell_count [dict size $::cells_caps_dict]
     update_status "Loaded $lib_count libraries with $cell_count cell types"
@@ -233,32 +228,31 @@ proc extract_signals {} {
     if {$::netlist_file eq ""} {
         return
     }
-    
+
     update_status "Extracting signals..." "progress"
-    .main.progress.bar start
-    
+
     set ::input_signals [list]
     set ::output_signals [list]
-    
+
     if {[catch {
         # Use the enhanced Verilog signal extraction
         source "extract_path.tcl"
-        
+
         # Get signals using intelligent Verilog parsing
         set signal_result [extract_verilog_signals $::netlist_file]
         set parsed_inputs [lindex $signal_result 0]
-        set parsed_outputs [lindex $signal_result 1] 
+        set parsed_outputs [lindex $signal_result 1]
         set parsed_wires [lindex $signal_result 2]
-        
+
         # Also get the actual connectivity information
         set parse_result [extract_path $::netlist_file]
         set graph_info [build_signal_graph $parse_result]
         set signal_to_drivers [lindex $graph_info 0]
         set signal_to_loads [lindex $graph_info 1]
-        
+
         # For input signals: Use parsed inputs + any signals that can be starting points
         set ::input_signals $parsed_inputs
-        
+
         # Add any additional signals that have loads (can be starting points)
         set load_signals [dict keys $signal_to_loads]
         foreach sig $load_signals {
@@ -266,35 +260,51 @@ proc extract_signals {} {
                 lappend ::input_signals $sig
             }
         }
-        
+
         # For output signals: Use parsed outputs + internal nodes that can be end points
         set ::output_signals $parsed_outputs
-        
+
         # Add wire signals and any signals that have drivers (can be end points)
         foreach sig $parsed_wires {
             if {$sig ni $::output_signals} {
                 lappend ::output_signals $sig
             }
         }
-        
+
         set driver_signals [dict keys $signal_to_drivers]
         foreach sig $driver_signals {
             if {$sig ni $::output_signals && $sig ni $::input_signals} {
                 lappend ::output_signals $sig
             }
         }
-        
-        # Sort for better display
-        set ::input_signals [lsort $::input_signals]
-        set ::output_signals [lsort $::output_signals]
-        
+
+        # Clean all signals by trimming whitespace and remove duplicates
+        set cleaned_inputs [list]
+        set seen_inputs [dict create]
+        foreach sig $::input_signals {
+            set trimmed [string trim $sig]
+            if {$trimmed ne "" && ![dict exists $seen_inputs $trimmed]} {
+                lappend cleaned_inputs $trimmed
+                dict set seen_inputs $trimmed 1
+            }
+        }
+        set ::input_signals [lsort -unique $cleaned_inputs]
+
+        set cleaned_outputs [list]
+        set seen_outputs [dict create]
+        foreach sig $::output_signals {
+            set trimmed [string trim $sig]
+            if {$trimmed ne "" && ![dict exists $seen_outputs $trimmed]} {
+                lappend cleaned_outputs $trimmed
+                dict set seen_outputs $trimmed 1
+            }
+        }
+        set ::output_signals [lsort -unique $cleaned_outputs]
+
     } err]} {
-        .main.progress.bar stop
         update_status "Error extracting signals: $err" "error"
         return
     }
-    
-    .main.progress.bar stop
 
     # Update comboboxes
     .main.signals.start_combo configure -values $::input_signals
@@ -315,13 +325,12 @@ proc validate_inputs {} {
         $::end_signal ne "" &&
         [dict size $::cells_caps_dict] > 0}]
 
-    .main.action.calc_btn configure -state [expr {$ready ? "normal" : "disabled"}]
-}
+        .main.action.calc_btn configure -state [expr {$ready ? "normal" : "disabled"}]
+    }
 
     # Main calculation procedure
     proc calculate_capacitance {} {
     update_status "Calculating capacitance path..." "progress"
-    .main.progress.bar start
 
     # Clear previous results
     clear_results
@@ -330,15 +339,27 @@ proc validate_inputs {} {
         # Source the extract_path script
         source "extract_path.tcl"
 
-        # Calculate path with capacitance
-        set ::current_result [get_path_with_capacitance $::netlist_file $::start_signal $::end_signal]
+        # Clean signal names by trimming whitespace
+        set clean_start [string trim $::start_signal]
+        set clean_end [string trim $::end_signal]
 
-        if {[dict get $::current_result "path_found"]} {
-            display_results
-            update_status "Calculation completed successfully"
+        # Calculate path with capacitance using cleaned signal names
+        set ::current_result [get_path_with_capacitance $::netlist_file $clean_start $clean_end]
+
+        # Check if path_found key exists and get its value
+        if {[dict exists $::current_result "path_found"]} {
+            set path_found_val [dict get $::current_result "path_found"]
+
+            if {$path_found_val} {
+                set total_cap [dict get $::current_result "total_capacitance"]
+                display_results
+                update_status "Calculation completed successfully - $total_cap"
+            } else {
+                set error_msg [dict get $::current_result "error_message"]
+                update_status "No path found: $error_msg" "error"
+            }
         } else {
-            set error_msg [dict get $::current_result "error_message"]
-            update_status "No path found: $error_msg" "error"
+            update_status "Error: Invalid result format from calculation" "error"
         }
 
     } err]} {
@@ -346,8 +367,6 @@ proc validate_inputs {} {
         tk_messageBox -type ok -icon error -title "Calculation Error" \
             -message "An error occurred during calculation:\n\n$err"
     }
-
-    .main.progress.bar stop
 }
 
 # Display calculation results
@@ -376,7 +395,7 @@ proc display_results {} {
     set method [dict get $::current_result "calculation_method"]
     set gate_count [llength [dict get $::current_result "gate_details"]]
 
-    .main.results.notebook.summary.content.total_val configure -text "$total_cap pF"
+    .main.results.notebook.summary.content.total_val configure -text "$total_cap"
     .main.results.notebook.summary.content.method_val configure -text $method
     .main.results.notebook.summary.content.gates_val configure -text $gate_count
 
@@ -405,20 +424,20 @@ proc format_path_structure {path} {
 proc clear_results {} {
     .main.results.notebook.path.text delete 1.0 end
     .main.results.notebook.gates.tree delete [.main.results.notebook.gates.tree children {}]
-    .main.results.notebook.summary.content.total_val configure -text "0.00 pF"
+    .main.results.notebook.summary.content.total_val configure -text "0.00"
     .main.results.notebook.summary.content.method_val configure -text "N/A"
     .main.results.notebook.summary.content.gates_val configure -text "0"
 }
 
 # Update status message with color coding
 proc update_status {message {type "normal"}} {
-    .main.progress.status configure -text $message
+    .main.status.message configure -text $message
 
     switch $type {
-        "error" { .main.progress.status configure -fg "#e74c3c" }
-        "warning" { .main.progress.status configure -fg "#f39c12" }
-        "progress" { .main.progress.status configure -fg "#3498db" }
-        default { .main.progress.status configure -fg "#27ae60" }
+        "error" { .main.status.message configure -fg "#e74c3c" }
+        "warning" { .main.status.message configure -fg "#f39c12" }
+        "progress" { .main.status.message configure -fg "#3498db" }
+        default { .main.status.message configure -fg "#27ae60" }
     }
 }
 
