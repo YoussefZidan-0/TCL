@@ -68,7 +68,7 @@ label .main.signals.start_lbl -text "Start Signal:" -anchor w
 ttk::combobox .main.signals.start_combo -textvariable ::start_signal -state readonly
 bind .main.signals.start_combo <<ComboboxSelected>> validate_inputs
 
-# End signal selection  
+# End signal selection
 label .main.signals.end_lbl -text "End Signal:" -anchor w
 ttk::combobox .main.signals.end_combo -textvariable ::end_signal -state readonly
 bind .main.signals.end_combo <<ComboboxSelected>> validate_inputs
@@ -130,7 +130,7 @@ scrollbar .main.results.notebook.gates.scroll -command ".main.results.notebook.g
 
 # Configure columns
 .main.results.notebook.gates.tree heading #1 -text "Gate Type"
-.main.results.notebook.gates.tree heading #2 -text "Instance Name"  
+.main.results.notebook.gates.tree heading #2 -text "Instance Name"
 .main.results.notebook.gates.tree heading #3 -text "Capacitance (pF)"
 .main.results.notebook.gates.tree column #1 -width 120
 .main.results.notebook.gates.tree column #2 -width 150
@@ -142,7 +142,7 @@ grid rowconfigure .main.results.notebook.gates 0 -weight 1
 grid columnconfigure .main.results.notebook.gates 0 -weight 1
 
 # Summary Tab
-frame .main.results.notebook.summary  
+frame .main.results.notebook.summary
 .main.results.notebook add .main.results.notebook.summary -text "Capacitance Summary"
 
 # Summary labels with better formatting
@@ -155,7 +155,7 @@ label .main.results.notebook.summary.content.total_val -text "0.00 pF" \
     -font {Arial 24 bold} -fg "#e74c3c" -anchor w
 
 label .main.results.notebook.summary.content.method_lbl -text "Calculation Method:" \
-    -font {Arial 12 bold} -anchor w  
+    -font {Arial 12 bold} -anchor w
 label .main.results.notebook.summary.content.method_val -text "N/A" \
     -font {Arial 12} -anchor w
 
@@ -177,7 +177,7 @@ proc select_netlist_file {} {
         -title "Select Netlist File" \
         -filetypes {{"Verilog Files" {.v}} {"All Files" {*}}} \
         -initialdir [pwd]]
-    
+
     if {$file ne ""} {
         set ::netlist_file $file
         update_status "Netlist selected: [file tail $file]"
@@ -191,21 +191,21 @@ proc load_libraries {} {
     if {$::netlist_file eq ""} {
         return
     }
-    
+
     set netlist_dir [file dirname $::netlist_file]
     set lib_files [glob -nocomplain -path $netlist_dir/ *.lib]
-    
+
     if {[llength $lib_files] == 0} {
         update_status "Warning: No .lib files found in netlist directory" "warning"
         return
     }
-    
+
     update_status "Loading libraries..." "progress"
     .main.progress.bar start
-    
+
     # Build combined capacitance dictionary from all .lib files
     set ::cells_caps_dict [dict create]
-    
+
     foreach lib_file $lib_files {
         if {[catch {
             source "extract_cap_new.tcl"
@@ -218,17 +218,17 @@ proc load_libraries {} {
             continue
         }
     }
-    
+
     .main.progress.bar stop
     set lib_count [llength $lib_files]
     set cell_count [dict size $::cells_caps_dict]
     update_status "Loaded $lib_count libraries with $cell_count cell types"
-    
+
     # Update library info display
     .main.files.lib_info configure -text "Loaded: $lib_count library files, $cell_count cell types"
 }
 
-# Extract input/output signals from netlist using extract_path.tcl engine
+# Extract input/output signals from netlist using enhanced Verilog parser
 proc extract_signals {} {
     if {$::netlist_file eq ""} {
         return
@@ -241,43 +241,52 @@ proc extract_signals {} {
     set ::output_signals [list]
     
     if {[catch {
-        # Use the same signal extraction as extract_path.tcl
+        # Use the enhanced Verilog signal extraction
         source "extract_path.tcl"
         
-        # Parse the netlist using the same engine
+        # Get signals using intelligent Verilog parsing
+        set signal_result [extract_verilog_signals $::netlist_file]
+        set parsed_inputs [lindex $signal_result 0]
+        set parsed_outputs [lindex $signal_result 1] 
+        set parsed_wires [lindex $signal_result 2]
+        
+        # Also get the actual connectivity information
         set parse_result [extract_path $::netlist_file]
         set graph_info [build_signal_graph $parse_result]
         set signal_to_drivers [lindex $graph_info 0]
         set signal_to_loads [lindex $graph_info 1]
         
-        # Extract actual available signals
-        set driver_signals [dict keys $signal_to_drivers]
-        set load_signals [dict keys $signal_to_loads]
+        # For input signals: Use parsed inputs + any signals that can be starting points
+        set ::input_signals $parsed_inputs
         
-        # For start signals, use signals that can be driven (have loads)
-        # Filter to get meaningful input signals (primary inputs and hierarchical inputs)
+        # Add any additional signals that have loads (can be starting points)
+        set load_signals [dict keys $signal_to_loads]
         foreach sig $load_signals {
-            if {[regexp {^input[AB](\[.*\])?$} $sig] || [regexp {^datapath\.|^i_\d+_\d+\.} $sig]} {
+            if {$sig ni $::input_signals && $sig ni $parsed_outputs} {
                 lappend ::input_signals $sig
             }
         }
         
-        # For end signals, use signals that have drivers (outputs)
-        # Include both primary outputs and internal signals that can be reached
-        foreach sig $driver_signals {
-            if {[regexp {^(p_0\[.*\]|n_\d+|.*\.output|Sum|Carry)$} $sig] || 
-                [regexp {^datapath\.|^i_\d+_\d+\.} $sig]} {
+        # For output signals: Use parsed outputs + internal nodes that can be end points
+        set ::output_signals $parsed_outputs
+        
+        # Add wire signals and any signals that have drivers (can be end points)
+        foreach sig $parsed_wires {
+            if {$sig ni $::output_signals} {
                 lappend ::output_signals $sig
             }
         }
         
-        # If no specific signals found, use all available
-        if {[llength $::input_signals] == 0} {
-            set ::input_signals [lsort [dict keys $signal_to_loads]]
+        set driver_signals [dict keys $signal_to_drivers]
+        foreach sig $driver_signals {
+            if {$sig ni $::output_signals && $sig ni $::input_signals} {
+                lappend ::output_signals $sig
+            }
         }
-        if {[llength $::output_signals] == 0} {
-            set ::output_signals [lsort [dict keys $signal_to_drivers]]
-        }
+        
+        # Sort for better display
+        set ::input_signals [lsort $::input_signals]
+        set ::output_signals [lsort $::output_signals]
         
     } err]} {
         .main.progress.bar stop
@@ -286,44 +295,44 @@ proc extract_signals {} {
     }
     
     .main.progress.bar stop
-    
+
     # Update comboboxes
     .main.signals.start_combo configure -values $::input_signals
     .main.signals.end_combo configure -values $::output_signals
-    
+
     # Clear previous selections
     set ::start_signal ""
     set ::end_signal ""
-    
+
     update_status "Found [llength $::input_signals] inputs, [llength $::output_signals] outputs"
     validate_inputs
 }
 
 # Validate inputs and enable/disable calculate button
 proc validate_inputs {} {
-    set ready [expr {$::netlist_file ne "" && 
-                    $::start_signal ne "" && 
-                    $::end_signal ne "" && 
-                    [dict size $::cells_caps_dict] > 0}]
-    
+    set ready [expr {$::netlist_file ne "" &&
+        $::start_signal ne "" &&
+        $::end_signal ne "" &&
+        [dict size $::cells_caps_dict] > 0}]
+
     .main.action.calc_btn configure -state [expr {$ready ? "normal" : "disabled"}]
 }
 
-# Main calculation procedure
-proc calculate_capacitance {} {
+    # Main calculation procedure
+    proc calculate_capacitance {} {
     update_status "Calculating capacitance path..." "progress"
     .main.progress.bar start
-    
+
     # Clear previous results
     clear_results
-    
+
     if {[catch {
         # Source the extract_path script
         source "extract_path.tcl"
-        
+
         # Calculate path with capacitance
         set ::current_result [get_path_with_capacitance $::netlist_file $::start_signal $::end_signal]
-        
+
         if {[dict get $::current_result "path_found"]} {
             display_results
             update_status "Calculation completed successfully"
@@ -331,13 +340,13 @@ proc calculate_capacitance {} {
             set error_msg [dict get $::current_result "error_message"]
             update_status "No path found: $error_msg" "error"
         }
-        
+
     } err]} {
         update_status "Calculation error: $err" "error"
         tk_messageBox -type ok -icon error -title "Calculation Error" \
             -message "An error occurred during calculation:\n\n$err"
     }
-    
+
     .main.progress.bar stop
 }
 
@@ -348,29 +357,29 @@ proc display_results {} {
     .main.results.notebook.path.text delete 1.0 end
     .main.results.notebook.path.text insert end "Path Structure:\n"
     .main.results.notebook.path.text insert end [format_path_structure $path_text]
-    
+
     # Display gate details in treeview
     .main.results.notebook.gates.tree delete [.main.results.notebook.gates.tree children {}]
-    
+
     set gate_num 0
     foreach gate_detail [dict get $::current_result "gate_details"] {
         incr gate_num
         set gate_type [dict get $gate_detail "gate_type"]
         set instance [dict get $gate_detail "instance"]
         set capacitance [format "%.3f" [dict get $gate_detail "capacitance"]]
-        
+
         .main.results.notebook.gates.tree insert {} end -values [list $gate_type $instance $capacitance]
     }
-    
+
     # Display summary
     set total_cap [format "%.3f" [dict get $::current_result "total_capacitance"]]
     set method [dict get $::current_result "calculation_method"]
     set gate_count [llength [dict get $::current_result "gate_details"]]
-    
+
     .main.results.notebook.summary.content.total_val configure -text "$total_cap pF"
     .main.results.notebook.summary.content.method_val configure -text $method
     .main.results.notebook.summary.content.gates_val configure -text $gate_count
-    
+
     # Switch to summary tab
     .main.results.notebook select .main.results.notebook.summary
 }
@@ -378,7 +387,7 @@ proc display_results {} {
 # Format path structure for display
 proc format_path_structure {path} {
     set result "Raw Path: $path\n\n"
-    
+
     # Add calculation steps if available
     if {[dict exists $::current_result "calculation_steps"]} {
         set result "${result}Calculation Steps:\n"
@@ -388,7 +397,7 @@ proc format_path_structure {path} {
             set result "${result}Step $step_num: $step\n"
         }
     }
-    
+
     return $result
 }
 
@@ -404,7 +413,7 @@ proc clear_results {} {
 # Update status message with color coding
 proc update_status {message {type "normal"}} {
     .main.progress.status configure -text $message
-    
+
     switch $type {
         "error" { .main.progress.status configure -fg "#e74c3c" }
         "warning" { .main.progress.status configure -fg "#f39c12" }

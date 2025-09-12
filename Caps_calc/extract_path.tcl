@@ -1,11 +1,122 @@
 
 
 
+# Intelligent signal extraction from Verilog module declarations
+proc extract_verilog_signals {netlist_filename} {
+    set input_signals [list]
+    set output_signals [list] 
+    set wire_signals [list]
+    
+    set fp [open $netlist_filename r]
+    set content ""
+    
+    # Read entire file to handle multi-line declarations
+    while {[gets $fp line] >= 0} {
+        append content "$line\n"
+    }
+    close $fp
+    
+    # Process input declarations - handle both simple and bus signals
+    # Pattern 1: input A, B, C;
+    set input_matches [regexp -all -inline {input\s+([^;\[]+);} $content]
+    foreach {full_match signal_decl} $input_matches {
+        set signal_list [split $signal_decl ","]
+        foreach sig $signal_list {
+            set sig [string trim $sig]
+            if {$sig ne "" && $sig ni $input_signals} {
+                lappend input_signals $sig
+            }
+        }
+    }
+    
+    # Pattern 2: input [7:0] P_DATA;
+    set bus_input_matches [regexp -all -inline {input\s+\[(\d+):(\d+)\]\s*(\w+)\s*;} $content]
+    foreach {full_match msb lsb signal_name} $bus_input_matches {
+        # Generate individual bit signals
+        if {$msb >= $lsb} {
+            for {set i $lsb} {$i <= $msb} {incr i} {
+                set bit_signal "${signal_name}\[${i}\]"
+                if {$bit_signal ni $input_signals} {
+                    lappend input_signals $bit_signal
+                }
+            }
+        }
+        # Also add the base signal name
+        if {$signal_name ni $input_signals} {
+            lappend input_signals $signal_name
+        }
+    }
+    
+    # Process output declarations - handle both simple and bus signals  
+    # Pattern 1: output K,L,M;
+    set output_matches [regexp -all -inline {output\s+([^;\[]+);} $content]
+    foreach {full_match signal_decl} $output_matches {
+        set signal_list [split $signal_decl ","]
+        foreach sig $signal_list {
+            set sig [string trim $sig]
+            if {$sig ne "" && $sig ni $output_signals} {
+                lappend output_signals $sig
+            }
+        }
+    }
+    
+    # Pattern 2: output [7:0] Sum;
+    set bus_output_matches [regexp -all -inline {output\s+\[(\d+):(\d+)\]\s*(\w+)\s*;} $content]
+    foreach {full_match msb lsb signal_name} $bus_output_matches {
+        # Generate individual bit signals
+        if {$msb >= $lsb} {
+            for {set i $lsb} {$i <= $msb} {incr i} {
+                set bit_signal "${signal_name}\[${i}\]"
+                if {$bit_signal ni $output_signals} {
+                    lappend output_signals $bit_signal
+                }
+            }
+        }
+        # Also add the base signal name
+        if {$signal_name ni $output_signals} {
+            lappend output_signals $signal_name
+        }
+    }
+    
+    # Process wire declarations for internal signals
+    # Pattern 1: wire n4, ser_en;
+    set wire_matches [regexp -all -inline {wire\s+([^;\[]+);} $content]
+    foreach {full_match signal_decl} $wire_matches {
+        set signal_list [split $signal_decl ","]
+        foreach sig $signal_list {
+            set sig [string trim $sig]
+            if {$sig ne "" && $sig ni $wire_signals && $sig ni $input_signals && $sig ni $output_signals} {
+                lappend wire_signals $sig
+            }
+        }
+    }
+    
+    # Pattern 2: wire [7:0] data_reg;
+    set bus_wire_matches [regexp -all -inline {wire\s+\[(\d+):(\d+)\]\s*(\w+)\s*;} $content]
+    foreach {full_match msb lsb signal_name} $bus_wire_matches {
+        # Generate individual bit signals
+        if {$msb >= $lsb} {
+            for {set i $lsb} {$i <= $msb} {incr i} {
+                set bit_signal "${signal_name}\[${i}\]"
+                if {$bit_signal ni $wire_signals && $bit_signal ni $input_signals && $bit_signal ni $output_signals} {
+                    lappend wire_signals $bit_signal
+                }
+            }
+        }
+        # Also add the base signal name
+        if {$signal_name ni $wire_signals && $signal_name ni $input_signals && $signal_name ni $output_signals} {
+            lappend wire_signals $signal_name
+        }
+    }
+    
+    return [list $input_signals $output_signals $wire_signals]
+}
+
 proc extract_path {netlist_filename {lib_files {}}} {
     if {![file exists $netlist_filename]} {
         error "Netlist file '$netlist_filename' not found"
     }
-    
+
     set fp [open $netlist_filename r]
     source "extract_cap_new.tcl"
     source "calcu_cap.tcl"
@@ -13,7 +124,7 @@ proc extract_path {netlist_filename {lib_files {}}} {
 
     # Initialize cell capacitance dictionary
     set cells_caps_dict [dict create]
-    
+
     # Load library files - use provided list or defaults
     if {[llength $lib_files] > 0} {
         foreach lib_file $lib_files {
@@ -29,7 +140,7 @@ proc extract_path {netlist_filename {lib_files {}}} {
         if {[file exists "scmetro_tsmc_cl013g_rvt_tt_1p2v_25c.lib"]} {
             set cells_caps_dict [extract_cap "scmetro_tsmc_cl013g_rvt_tt_1p2v_25c.lib"]
         }
-        
+
         # Append Nangate library for backward compatibility
         if {[file exists "NangateOpenCellLibrary_typical.lib"]} {
             set nangate_caps_dict [extract_cap "NangateOpenCellLibrary_typical.lib"]

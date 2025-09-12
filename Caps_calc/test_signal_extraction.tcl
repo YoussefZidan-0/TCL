@@ -5,10 +5,10 @@
 proc extract_signals_test {netlist_file} {
     set input_signals [list]
     set output_signals [list]
-    
+
     if {[catch {
         set fp [open $netlist_file r]
-        
+
         # Look for module definition and primary inputs/outputs
         while {[gets $fp line] >= 0} {
             # Primary inputs
@@ -27,8 +27,8 @@ proc extract_signals_test {netlist_file} {
                     }
                 }
             }
-            
-            # Primary outputs  
+
+            # Primary outputs
             if {[regexp {^\s*output\s+(.+);} $line -> signals]} {
                 # Handle bus notation properly: [7:0]Sum -> Sum
                 if {[regexp {\[[\d:]+\](\w+)} $signals -> signal_name]} {
@@ -45,14 +45,14 @@ proc extract_signals_test {netlist_file} {
                 }
             }
         }
-        
+
         close $fp
-        
+
     } err]} {
         puts "Error reading netlist: $err"
         return [list {} {}]
     }
-    
+
     return [list $input_signals $output_signals]
 }
 
@@ -80,18 +80,18 @@ puts "Total: [llength $inputs] inputs, [llength $outputs] outputs"
 if {[llength $inputs] > 0 && [llength $outputs] > 0} {
     puts ""
     puts "=== Testing Path Finding ==="
-    
+
     # Try to source the extract_path script and test
     if {[catch {
         source "extract_path.tcl"
-        
+
         set start_sig [lindex $inputs 0]
         set end_sig [lindex $outputs 0]
-        
+
         puts "Testing path from '$start_sig' to '$end_sig'..."
-        
+
         set path_result [get_path_with_capacitance "demo_adderPlus.syn.v" $start_sig $end_sig]
-        
+
         if {[dict get $path_result "path_found"]} {
             puts "✅ Path found!"
             puts "Path: [dict get $path_result "path"]"
@@ -102,7 +102,7 @@ if {[llength $inputs] > 0 && [llength $outputs] > 0} {
                 puts "Error: [dict get $path_result "error_message"]"
             }
         }
-        
+
     } err]} {
         puts "❌ Error testing path: $err"
     }
